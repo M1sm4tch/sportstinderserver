@@ -1,54 +1,38 @@
 const express = require('express');
+const mongoose = require('mongoose');
 const dotenv = require('dotenv');
 const passport = require('passport');
-const session = require('express-session'); 
-require('./auth');
+const session = require('express-session');
+const auth = require('./auth');  
+const User = require('./models/userModel');  
+const routes = require('./routes/routes');  
+const connectToMongoDB = require('./db/db')
+const cors = require('cors');
+
+
+
 dotenv.config();
 
-function isLoggedIn(req, res, next) {
-    req.user ? next() : res.sendStatus(401);
-}
+connectToMongoDB();
 
 const app = express();
 
+app.use(cors());
+
 app.use(session({
-    secret: process.env.SECRET,
-    resave: false,
-    saveUninitialized: true,
+  secret: process.env.SECRET,
+  resave: false,
+  saveUninitialized: true,
 }));
 
 app.use(passport.initialize());
 app.use(passport.session());
 
-const PORT = process.env.PORT || 2000; 
+app.use('/', routes);
+
+const PORT = process.env.PORT || 2000;
 const PUBLIC_URL = process.env.PUBLIC_URL;
 
-app.get('/', (req,res) => {
-    res.send('<a href="/auth/google">Authenticate with Google</a>');
+app.listen(PORT, () => {
+  console.log(`Server is running at ${PUBLIC_URL}${PORT}`);
 });
-
-app.get('/auth/google',passport.authenticate('google',{scope:['email','profile']}))
-
-app.get('/auth/google/callback',
-    passport.authenticate('google',  {
-        successRedirect:'/protected',
-        failureRedirect:'/auth/failure',
-    })
-);
-
-app.get('/auth/failure',(req,res)=>{
-    res.send('something went wrong..')
-})
-
-app.get('/protected',isLoggedIn,(req,res)=>{
-    res.send(`Hello! ${req.user.displayName}`);
-});
-
-app.get('/logout', (req,res) => {
-    req.logout(function() {
-        console.log('logged out')
-      });
-    res.send('Goodbye!');
-})
-
-app.listen(PORT,()=>{console.log(`${PUBLIC_URL}${PORT}`)})

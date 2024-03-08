@@ -1,5 +1,6 @@
 const passport = require('passport');
 const dotenv = require('dotenv');
+const User = require('./models/userModel')
 
 dotenv.config();
 
@@ -16,18 +17,40 @@ passport.use(new GoogleStrategy({
     callbackURL: `${PUBLIC_URL}${PORT}/auth/google/callback`, // Corrected callback URL
     passReqToCallback: true
   },
-  function(request, accessToken, refreshToken, profile, done) {
-    // User.findOrCreate({ googleId: profile.id }, 
-    //     function (err, user) {
-    // });
-    return done(null, profile);
+  async (request, accessToken, refreshToken, profile, done) => {
+    try {
+
+      let user = await User.findOne({ email: profile.emails[0].value });
+
+      if (!user) {
+        user = new User({
+          email: profile.emails[0].value,
+          username: profile.displayName,  
+          firstName: profile.name.givenName,
+          lastName: profile.name.familyName,
+          password: 'password',
+          displayName: profile.displayName,
+        });
+        await user.save();
+      }
+
+      return done(null, user);
+    } catch (error) {
+      return done(error);
+    }
   }
 ));
 
-passport.serializeUser(function(user, done) {
-  done(null, user);
+passport.serializeUser((user, done) => {
+  done(null, user.id);
 });
 
-passport.deserializeUser(function(user, done) {
-  done(null, user);
+passport.deserializeUser(async (id, done) => {
+  try {
+    const user = await User.findById(id);
+    done(null, user);
+  } catch (error) {
+    done(error, null);
+  }
 });
+
